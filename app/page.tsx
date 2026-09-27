@@ -10,6 +10,7 @@ import UpNext from '@/components/UpNext';
 import SponsorStrip from '@/components/SponsorStrip';
 import QuickLinks from '@/components/QuickLinks';
 import Footer from '@/components/Footer';
+import NotifyMe from '@/components/NotifyMe';
 
 export default function Home() {
   const [state, setState] = useState<PublicState | null>(null);
@@ -41,6 +42,8 @@ export default function Home() {
         <NowPerforming contestant={state?.nowPerforming ?? null} cheerCount={nowCheers} />
 
         <UpNext contestants={state?.upNext ?? []} />
+
+        <NotifyMe />
 
         <SponsorStrip />
 
