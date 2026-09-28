@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import ConfirmModal, { ConfirmOptions } from '@/components/ConfirmModal';
 import {
   ArrowLeft, LogOut, Play, Check, SkipForward, RotateCcw,
   MessageCircle, AlertTriangle, Shield, Mic2, MapPin, RefreshCw,
@@ -179,7 +180,9 @@ function Dashboard({
   const [state, setState] = useState<PublicState | null>(null);
   const [err, setErr] = useState('');
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [confirmState, setConfirmState] = useState<(ConfirmOptions & { onConfirm: () => void }) | null>(null);
   const [filter, setFilter] = useState<'all' | 'PENDING' | 'ACTIVE' | 'DONE'>('all');
+
 
   async function load() {
     try {
@@ -191,10 +194,18 @@ function Dashboard({
     }
   }
 
+    function askConfirm(
+    options: ConfirmOptions,
+    onConfirm: () => void,
+  ) {
+    setConfirmState({ ...options, onConfirm });
+  }
+
   useEffect(() => {
     const stop = startSmartPoll(load);
     return stop;
   }, []);
+
 
   async function doAction(id: string, fn: () => Promise<PublicState>) {
     setBusyId(id);
@@ -318,32 +329,30 @@ function Dashboard({
             </p>
           </div>
           <button
-            onClick={() => {
-              const total = state?.contestants.length ?? 0;
-              const ok = confirm(
-                `⚠️ RESET ALL STATUSES?\n\n` +
-                `This will set ALL ${total} contestants back to PENDING.\n\n` +
-                `• Now Performing will be cleared\n` +
-                `• Push notifications will NOT be sent\n` +
-                `• This cannot be undone\n\n` +
-                `Are you sure?`,
-              );
-              if (!ok) return;
-
-              const doubleCheck = confirm(
-                `🚨 FINAL CONFIRMATION\n\n` +
-                `You are about to reset ${total} contestants.\n` +
-                `Click OK only if you're absolutely sure.`,
-              );
-              if (!doubleCheck) return;
-
-              setBusyId('__reset__');
-              api
-                .resetAll(token)
-                .then(() => load())
-                .catch((e) => setErr(String(e).replace(/^Error:\s*/, '')))
-                .finally(() => setBusyId(null));
-            }}
+            onClick={() =>
+              askConfirm(
+                {
+                  title: 'Reset All Statuses',
+                  message: `You are about to reset ALL contestants back to PENDING.`,
+                  details: [
+                    'Every contestant → PENDING',
+                    'Now Performing will be cleared',
+                    'No push notifications will be sent',
+                    'This cannot be undone',
+                  ],
+                  confirmLabel: 'Reset Everything',
+                  variant: 'danger',
+                },
+                () => {
+                  setBusyId('__reset__');
+                  api
+                    .resetAll(token)
+                    .then(() => load())
+                    .catch((e) => setErr(String(e).replace(/^Error:\s*/, '')))
+                    .finally(() => setBusyId(null));
+                },
+              )
+            }
             disabled={busyId === '__reset__'}
             className="inline-flex items-center justify-center gap-2 rounded-lg border border-red-500/50 bg-red-600/20 hover:bg-red-600/40 text-red-200 text-xs font-bold px-3 py-2 transition hover:scale-[1.02] active:scale-95 disabled:opacity-50"
           >
@@ -369,6 +378,7 @@ function Dashboard({
               onComplete={() => doAction(c.id, () => api.markCompleted(token, c.id))}
               onSkip={() => doAction(c.id, () => api.skipContestant(token, c.id))}
               onRequeue={() => doAction(c.id, () => api.requeueContestant(token, c.id))}
+              askConfirm={askConfirm}
             />
           ))}
         </div>
@@ -379,6 +389,25 @@ function Dashboard({
           <AlertTriangle size={14} className="shrink-0 mt-0.5" />
           <span>{err}</span>
         </div>
+      )}
+
+            {confirmState && (
+        <ConfirmModal
+          open={true}
+          title={confirmState.title}
+          message={confirmState.message}
+          details={confirmState.details}
+          confirmLabel={confirmState.confirmLabel}
+          cancelLabel={confirmState.cancelLabel}
+          variant={confirmState.variant}
+          busy={busyId === '__reset__'}
+          onCancel={() => setConfirmState(null)}
+          onConfirm={() => {
+            const fn = confirmState.onConfirm;
+            setConfirmState(null);
+            fn();
+          }}
+        />
       )}
     </main>
   );
@@ -391,6 +420,7 @@ function Row({
   onComplete,
   onSkip,
   onRequeue,
+  askConfirm,
 }: {
   contestant: Contestant;
   busy: boolean;
@@ -398,6 +428,7 @@ function Row({
   onComplete: () => void;
   onSkip: () => void;
   onRequeue: () => void;
+  askConfirm: (opts: ConfirmOptions, fn: () => void) => void;
 }) {
   return (
     <div
@@ -439,9 +470,23 @@ function Row({
         {/* Right: actions */}
         <div className="flex flex-wrap items-center gap-1.5 md:gap-2">
           <button
-            onClick={() => {
-              if (confirmStart(c)) onStart();
-            }}
+                        onClick={() =>
+              askConfirm(
+                {
+                  title: 'Start Performance',
+                  message: `#${String(c.seq).padStart(3, '0')}  ${c.name}\n${c.category} · ${c.city}`,
+                  details: [
+                    'Any current performer will be marked COMPLETED',
+                    `${c.name} will be set ON STAGE`,
+                    'Next 2 acts auto-promote to UP NEXT',
+                    'A push notification will be sent (if subscribed)',
+                  ],
+                  confirmLabel: 'Start Now',
+                  variant: 'default',
+                },
+                onStart,
+              )
+            }
             disabled={busy}
             className="inline-flex items-center gap-1 rounded-lg bg-gradient-to-br from-brand-gold to-brand-amber text-black text-xs font-bold px-3 py-1.5 transition hover:scale-105 active:scale-95 disabled:opacity-50"
           >
@@ -449,9 +494,22 @@ function Row({
           </button>
 
           <button
-            onClick={() => {
-              if (confirmComplete(c)) onComplete();
-            }}
+           onClick={() =>
+              askConfirm(
+                {
+                  title: 'Mark Completed',
+                  message: `#${String(c.seq).padStart(3, '0')}  ${c.name}`,
+                  details: [
+                    `${c.name} status → COMPLETED`,
+                    'Now Performing banner clears if it was them',
+                    'Next 2 acts auto-promote to UP NEXT',
+                  ],
+                  confirmLabel: 'Mark Done',
+                  variant: 'success',
+                },
+                onComplete,
+              )
+            }
             disabled={busy}
             className="inline-flex items-center gap-1 rounded-lg bg-emerald-600/80 text-white text-xs font-bold px-3 py-1.5 transition hover:scale-105 active:scale-95 disabled:opacity-50"
           >
@@ -459,9 +517,22 @@ function Row({
           </button>
 
           <button
-            onClick={() => {
-              if (confirmSkip(c)) onSkip();
-            }}
+            onClick={() =>
+              askConfirm(
+                {
+                  title: 'Skip Contestant',
+                  message: `#${String(c.seq).padStart(3, '0')}  ${c.name}`,
+                  details: [
+                    `${c.name} status → SKIPPED`,
+                    'Removed from the live queue',
+                    'Can be requeued later via the Requeue button',
+                  ],
+                  confirmLabel: 'Skip',
+                  variant: 'danger',
+                },
+                onSkip,
+              )
+            }
             disabled={busy}
             className="inline-flex items-center gap-1 rounded-lg bg-zinc-700/80 text-white text-xs font-bold px-3 py-1.5 transition hover:scale-105 active:scale-95 disabled:opacity-50"
           >
@@ -469,9 +540,21 @@ function Row({
           </button>
 
           <button
-            onClick={() => {
-              if (confirmRequeue(c)) onRequeue();
-            }}
+            onClick={() =>
+              askConfirm(
+                {
+                  title: 'Requeue Contestant',
+                  message: `#${String(c.seq).padStart(3, '0')}  ${c.name}`,
+                  details: [
+                    `${c.name} status → PENDING`,
+                    'Rejoins the queue at their original sequence',
+                  ],
+                  confirmLabel: 'Requeue',
+                  variant: 'info',
+                },
+                onRequeue,
+              )
+            }
             disabled={busy}
             className="inline-flex items-center gap-1 rounded-lg border border-brand-gold/40 text-brand-gold text-xs font-bold px-3 py-1.5 transition hover:scale-105 hover:bg-brand-gold/10 active:scale-95 disabled:opacity-50"
           >
@@ -494,50 +577,3 @@ function Row({
   );
 }
 
-// ============================================================
-// Confirmation helpers — used by Row action buttons
-// ============================================================
-function confirmStart(c: Contestant): boolean {
-  return confirm(
-    `▶ START performance?\n\n` +
-    `#${String(c.seq).padStart(3, '0')}  ${c.name}\n` +
-    `${c.category} · ${c.city}\n\n` +
-    `This will:\n` +
-    `• Mark any current performer as COMPLETED\n` +
-    `• Set ${c.name} as ON STAGE\n` +
-    `• Auto-promote the next 2 acts to UP NEXT\n` +
-    `• Send a push notification to ${c.name} (if subscribed)`,
-  );
-}
-
-function confirmComplete(c: Contestant): boolean {
-  return confirm(
-    `✅ MARK COMPLETED?\n\n` +
-    `#${String(c.seq).padStart(3, '0')}  ${c.name}\n\n` +
-    `This will:\n` +
-    `• Set ${c.name} status to COMPLETED\n` +
-    `• Clear the Now Performing banner if it's them\n` +
-    `• Auto-promote the next 2 acts to UP NEXT`,
-  );
-}
-
-function confirmSkip(c: Contestant): boolean {
-  return confirm(
-    `⏭ SKIP this contestant?\n\n` +
-    `#${String(c.seq).padStart(3, '0')}  ${c.name}\n\n` +
-    `This will:\n` +
-    `• Set status to SKIPPED\n` +
-    `• Remove them from the queue\n` +
-    `• They can be requeued later`,
-  );
-}
-
-function confirmRequeue(c: Contestant): boolean {
-  return confirm(
-    `↻ REQUEUE this contestant?\n\n` +
-    `#${String(c.seq).padStart(3, '0')}  ${c.name}\n\n` +
-    `This will:\n` +
-    `• Set status back to PENDING\n` +
-    `• They rejoin the queue at their original sequence number`,
-  );
-}
