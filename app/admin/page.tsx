@@ -307,6 +307,51 @@ function Dashboard({
           ))}
         </div>
 
+        {/* Danger zone */}
+        <div className="rounded-xl border border-red-500/30 bg-red-950/20 p-3 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+          <div className="flex-1 min-w-0">
+            <p className="text-[10px] uppercase tracking-widest text-red-300/80 font-bold">
+              Danger Zone
+            </p>
+            <p className="text-xs text-red-200/70">
+              Reset every contestant back to PENDING and clear Now Performing. Use this after a test run.
+            </p>
+          </div>
+          <button
+            onClick={() => {
+              const total = state?.contestants.length ?? 0;
+              const ok = confirm(
+                `⚠️ RESET ALL STATUSES?\n\n` +
+                `This will set ALL ${total} contestants back to PENDING.\n\n` +
+                `• Now Performing will be cleared\n` +
+                `• Push notifications will NOT be sent\n` +
+                `• This cannot be undone\n\n` +
+                `Are you sure?`,
+              );
+              if (!ok) return;
+
+              const doubleCheck = confirm(
+                `🚨 FINAL CONFIRMATION\n\n` +
+                `You are about to reset ${total} contestants.\n` +
+                `Click OK only if you're absolutely sure.`,
+              );
+              if (!doubleCheck) return;
+
+              setBusyId('__reset__');
+              api
+                .resetAll(token)
+                .then(() => load())
+                .catch((e) => setErr(String(e).replace(/^Error:\s*/, '')))
+                .finally(() => setBusyId(null));
+            }}
+            disabled={busyId === '__reset__'}
+            className="inline-flex items-center justify-center gap-2 rounded-lg border border-red-500/50 bg-red-600/20 hover:bg-red-600/40 text-red-200 text-xs font-bold px-3 py-2 transition hover:scale-[1.02] active:scale-95 disabled:opacity-50"
+          >
+            <AlertTriangle size={14} />
+            {busyId === '__reset__' ? 'Resetting…' : 'Reset All Statuses'}
+          </button>
+        </div>
+
         {/* Contestant rows */}
         <div className="space-y-2">
           {filtered.length === 0 && (
@@ -394,7 +439,9 @@ function Row({
         {/* Right: actions */}
         <div className="flex flex-wrap items-center gap-1.5 md:gap-2">
           <button
-            onClick={onStart}
+            onClick={() => {
+              if (confirmStart(c)) onStart();
+            }}
             disabled={busy}
             className="inline-flex items-center gap-1 rounded-lg bg-gradient-to-br from-brand-gold to-brand-amber text-black text-xs font-bold px-3 py-1.5 transition hover:scale-105 active:scale-95 disabled:opacity-50"
           >
@@ -402,7 +449,9 @@ function Row({
           </button>
 
           <button
-            onClick={onComplete}
+            onClick={() => {
+              if (confirmComplete(c)) onComplete();
+            }}
             disabled={busy}
             className="inline-flex items-center gap-1 rounded-lg bg-emerald-600/80 text-white text-xs font-bold px-3 py-1.5 transition hover:scale-105 active:scale-95 disabled:opacity-50"
           >
@@ -410,7 +459,9 @@ function Row({
           </button>
 
           <button
-            onClick={onSkip}
+            onClick={() => {
+              if (confirmSkip(c)) onSkip();
+            }}
             disabled={busy}
             className="inline-flex items-center gap-1 rounded-lg bg-zinc-700/80 text-white text-xs font-bold px-3 py-1.5 transition hover:scale-105 active:scale-95 disabled:opacity-50"
           >
@@ -418,7 +469,9 @@ function Row({
           </button>
 
           <button
-            onClick={onRequeue}
+            onClick={() => {
+              if (confirmRequeue(c)) onRequeue();
+            }}
             disabled={busy}
             className="inline-flex items-center gap-1 rounded-lg border border-brand-gold/40 text-brand-gold text-xs font-bold px-3 py-1.5 transition hover:scale-105 hover:bg-brand-gold/10 active:scale-95 disabled:opacity-50"
           >
@@ -438,5 +491,53 @@ function Row({
         </div>
       </div>
     </div>
+  );
+}
+
+// ============================================================
+// Confirmation helpers — used by Row action buttons
+// ============================================================
+function confirmStart(c: Contestant): boolean {
+  return confirm(
+    `▶ START performance?\n\n` +
+    `#${String(c.seq).padStart(3, '0')}  ${c.name}\n` +
+    `${c.category} · ${c.city}\n\n` +
+    `This will:\n` +
+    `• Mark any current performer as COMPLETED\n` +
+    `• Set ${c.name} as ON STAGE\n` +
+    `• Auto-promote the next 2 acts to UP NEXT\n` +
+    `• Send a push notification to ${c.name} (if subscribed)`,
+  );
+}
+
+function confirmComplete(c: Contestant): boolean {
+  return confirm(
+    `✅ MARK COMPLETED?\n\n` +
+    `#${String(c.seq).padStart(3, '0')}  ${c.name}\n\n` +
+    `This will:\n` +
+    `• Set ${c.name} status to COMPLETED\n` +
+    `• Clear the Now Performing banner if it's them\n` +
+    `• Auto-promote the next 2 acts to UP NEXT`,
+  );
+}
+
+function confirmSkip(c: Contestant): boolean {
+  return confirm(
+    `⏭ SKIP this contestant?\n\n` +
+    `#${String(c.seq).padStart(3, '0')}  ${c.name}\n\n` +
+    `This will:\n` +
+    `• Set status to SKIPPED\n` +
+    `• Remove them from the queue\n` +
+    `• They can be requeued later`,
+  );
+}
+
+function confirmRequeue(c: Contestant): boolean {
+  return confirm(
+    `↻ REQUEUE this contestant?\n\n` +
+    `#${String(c.seq).padStart(3, '0')}  ${c.name}\n\n` +
+    `This will:\n` +
+    `• Set status back to PENDING\n` +
+    `• They rejoin the queue at their original sequence number`,
   );
 }
