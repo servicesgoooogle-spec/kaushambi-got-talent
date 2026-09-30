@@ -29,6 +29,14 @@ export interface Contestant {
   status: Status;
 }
 
+export interface Announcement {
+  id: string;
+  title: string;
+  body: string;
+  createdAt: string;
+  pushed: boolean;
+}
+
 export interface PublicState {
   settings: Record<string, string>;
   nowPerforming: Contestant | null;
@@ -86,6 +94,28 @@ export const api = {
   contestant: (id: string) => getJson<Contestant>('contestant', { id }),
 
   cheers: () => getJson<Record<string, number>>('cheers'),
+
+ announcements: () => getJson<Announcement[]>('announcements'),
+
+  addAnnouncement: (token: string, title: string, body: string) =>
+    postJson<{
+      ok: boolean;
+      id: string;
+      pushed: boolean;
+      announcement: Announcement;
+    }>({
+      action: 'addAnnouncement',
+      token,
+      title,
+      body,
+    }),
+
+  deleteAnnouncement: (token: string, id: string) =>
+    postJson<{ ok: boolean; deleted: string }>({
+      action: 'deleteAnnouncement',
+      token,
+      id,
+    }),
 
   cheer: (contestantId: string) =>
     postJson<{ contestantId: string; count: number }>({

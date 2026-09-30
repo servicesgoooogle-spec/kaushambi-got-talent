@@ -11,15 +11,21 @@ import SponsorStrip from '@/components/SponsorStrip';
 import QuickLinks from '@/components/QuickLinks';
 import Footer from '@/components/Footer';
 import NotifyMe from '@/components/NotifyMe';
+import Announcements from '@/components/Announcements';
 
 export default function Home() {
   const [state, setState] = useState<PublicState | null>(null);
   const [err, setErr] = useState<string>('');
+  const [announcements, setAnnouncements] = useState<import('@/lib/api').Announcement[]>([]);
 
   async function load() {
     try {
-      const s = await api.publicState();
+      const [s, anns] = await Promise.all([
+        api.publicState(),
+        api.announcements(),
+      ]);
       setState(s);
+      setAnnouncements(anns);
       setErr('');
     } catch (e) {
       setErr(String(e));
@@ -40,6 +46,8 @@ export default function Home() {
 
       <div className="mt-10 md:mt-14 space-y-10">
         <NowPerforming contestant={state?.nowPerforming ?? null} cheerCount={nowCheers} />
+
+        <Announcements announcements={announcements} />
 
         <UpNext contestants={state?.upNext ?? []} />
 
