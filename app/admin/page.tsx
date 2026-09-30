@@ -10,7 +10,6 @@ import {
 } from 'lucide-react';
 import { api, Contestant, PublicState, Status, Announcement } from '@/lib/api';
 import { startSmartPoll } from '@/lib/poll';
-import { api as _api, Announcement } from '@/lib/api';
 
 const STORAGE_KEY = 'kgt_admin_token';
 const STORAGE_USER = 'kgt_admin_user';
