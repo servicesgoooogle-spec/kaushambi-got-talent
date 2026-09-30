@@ -6,9 +6,11 @@ import ConfirmModal, { ConfirmOptions } from '@/components/ConfirmModal';
 import {
   ArrowLeft, LogOut, Play, Check, SkipForward, RotateCcw,
   MessageCircle, AlertTriangle, Shield, Mic2, MapPin, RefreshCw,
+  Megaphone, Send, Trash2,
 } from 'lucide-react';
-import { api, Contestant, PublicState, Status } from '@/lib/api';
+import { api, Contestant, PublicState, Status, Announcement } from '@/lib/api';
 import { startSmartPoll } from '@/lib/poll';
+import { api as _api, Announcement } from '@/lib/api';
 
 const STORAGE_KEY = 'kgt_admin_token';
 const STORAGE_USER = 'kgt_admin_user';
@@ -182,12 +184,20 @@ function Dashboard({
   const [busyId, setBusyId] = useState<string | null>(null);
   const [confirmState, setConfirmState] = useState<(ConfirmOptions & { onConfirm: () => void }) | null>(null);
   const [filter, setFilter] = useState<'all' | 'PENDING' | 'ACTIVE' | 'DONE'>('all');
+    const [announcements, setAnnouncements] = useState<Announcement[]>([]);
+  const [annTitle, setAnnTitle] = useState('');
+  const [annBody, setAnnBody] = useState('');
+  const [annBusy, setAnnBusy] = useState(false);
 
 
   async function load() {
     try {
-      const s = await api.publicState();
+      const [s, anns] = await Promise.all([
+        api.publicState(),
+        api.announcements(),
+      ]);
       setState(s);
+      setAnnouncements(anns);
       setErr('');
     } catch (e) {
       setErr(String(e));
@@ -220,6 +230,56 @@ function Dashboard({
     } finally {
       setBusyId(null);
     }
+  }
+
+    async function sendAnnouncement() {
+    if (!annBody.trim()) {
+      setErr('Message body is required');
+      return;
+    }
+    setAnnBusy(true);
+    try {
+      const res = await api.addAnnouncement(token, annTitle.trim(), annBody.trim());
+      setAnnTitle('');
+      setAnnBody('');
+      await load();
+      if (res.pushed) {
+        alert('✅ Announcement posted and push sent to all subscribed devices.');
+      } else {
+        alert('✅ Announcement posted. (Push was not sent — check OneSignal keys.)');
+      }
+    } catch (e) {
+      setErr(String(e).replace(/^Error:\s*/, ''));
+    } finally {
+      setAnnBusy(false);
+    }
+  }
+
+  async function deleteAnnouncementById(id: string) {
+    askConfirm(
+      {
+        title: 'Delete Announcement',
+        message: `Delete announcement ${id}?`,
+        details: [
+          'This removes it from the home page immediately',
+          'Push notification (if any) cannot be undone',
+          'This cannot be undone',
+        ],
+        confirmLabel: 'Delete',
+        variant: 'danger',
+      },
+      async () => {
+        setAnnBusy(true);
+        try {
+          await api.deleteAnnouncement(token, id);
+          await load();
+        } catch (e) {
+          setErr(String(e).replace(/^Error:\s*/, ''));
+        } finally {
+          setAnnBusy(false);
+        }
+      },
+    );
   }
 
   const filtered = (state?.contestants ?? []).filter((c) => {
@@ -382,6 +442,115 @@ function Dashboard({
             />
           ))}
         </div>
+
+        {/* === Announcements Panel === */}
+        <div className="rounded-2xl border border-brand-neon/40 bg-gradient-to-br from-brand-neon/5 via-black/70 to-brand-gold/5 p-5 md:p-6 backdrop-blur">
+          <div className="flex items-center gap-2 mb-4">
+            <Megaphone size={18} className="text-brand-neon" />
+            <h3 className="font-display text-lg md:text-xl tracking-[0.25em] text-brand-neon">
+              ANNOUNCEMENTS
+            </h3>
+            <span className="flex-1 h-px bg-gradient-to-r from-brand-neon/50 to-transparent" />
+            <span className="text-[10px] uppercase tracking-widest text-brand-gold/60">
+              {announcements.length} active
+            </span>
+          </div>
+
+          {/* Write form */}
+          <div className="space-y-3 mb-6">
+            <input
+              type="text"
+              value={annTitle}
+              onChange={(e) => setAnnTitle(e.target.value)}
+              placeholder="Title (optional) — e.g. 🏆 Winners Announced"
+              maxLength={80}
+              className="w-full rounded-lg border border-brand-gold/30 bg-black/60 px-3 py-2.5 text-brand-goldbright placeholder-brand-gold/40 outline-none focus:border-brand-neon focus:ring-2 focus:ring-brand-neon/30 transition"
+            />
+            <textarea
+              value={annBody}
+              onChange={(e) => setAnnBody(e.target.value)}
+              placeholder="Write your announcement here. Line breaks are preserved on the home page."
+              rows={4}
+              maxLength={500}
+              className="w-full rounded-lg border border-brand-gold/30 bg-black/60 px-3 py-2.5 text-brand-goldbright placeholder-brand-gold/40 outline-none focus:border-brand-neon focus:ring-2 focus:ring-brand-neon/30 transition resize-y"
+            />
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+              <span className="text-[10px] text-brand-gold/50 sm:mr-auto">
+                {annBody.length}/500 characters · A push will be sent to all subscribers
+              </span>
+              <button
+                onClick={sendAnnouncement}
+                disabled={annBusy || !annBody.trim()}
+                className="inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-br from-brand-neon to-cyan-500 text-black text-sm font-bold px-5 py-2.5 transition hover:scale-105 hover:glow-neon active:scale-95 disabled:opacity-50"
+              >
+                <Send size={14} />
+                {annBusy ? 'Sending…' : 'Send to All'}
+              </button>
+            </div>
+          </div>
+
+          {/* Existing announcements */}
+          {announcements.length === 0 ? (
+            <p className="text-center text-xs text-brand-gold/50 py-6">
+              No announcements yet. Send your first one above.
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {announcements.map((a, i) => (
+                <div
+                  key={a.id}
+                  className={[
+                    'flex items-start gap-3 rounded-xl border p-3',
+                    i === 0
+                      ? 'border-brand-gold/60 bg-brand-gold/5'
+                      : 'border-brand-gold/20 bg-black/40',
+                  ].join(' ')}
+                >
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap mb-1">
+                      <span className="text-[10px] font-mono text-brand-gold/50">
+                        {a.id}
+                      </span>
+                      {i === 0 && (
+                        <span className="text-[9px] font-bold tracking-widest text-brand-gold bg-brand-gold/10 border border-brand-gold/40 rounded px-1.5 py-0.5">
+                          LATEST
+                        </span>
+                      )}
+                      {a.pushed && (
+                        <span className="text-[9px] text-brand-neon/80">
+                          🔔 push sent
+                        </span>
+                      )}
+                    </div>
+                    {a.title && (
+                      <p className="font-semibold text-brand-goldbright text-sm truncate">
+                        {a.title}
+                      </p>
+                    )}
+                    <p className="text-xs text-brand-gold/70 whitespace-pre-line line-clamp-3">
+                      {a.body}
+                    </p>
+                    <p className="text-[10px] text-brand-gold/40 mt-1">
+                      {a.createdAt ? new Date(a.createdAt).toLocaleString('en-IN') : ''}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => deleteAnnouncementById(a.id)}
+                    disabled={annBusy}
+                    className="shrink-0 rounded-lg border border-red-500/40 bg-red-600/10 hover:bg-red-600/30 text-red-300 p-2 transition hover:scale-105 active:scale-95 disabled:opacity-50"
+                    aria-label={`Delete ${a.id}`}
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Placeholder — keeps grid layout consistent */}
+        <div className="h-0" />
+
       </div>
 
       {err && (
