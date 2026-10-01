@@ -22,18 +22,21 @@ export default function SchedulePage() {
   const [cat, setCat] = useState<Cat>('all');
   const [q, setQ] = useState('');
   const [err, setErr] = useState('');
+  const [loading, setLoading] = useState(true);
 
-  async function load() {
+    async function load() {
     try {
       const data = await api.schedule(cat === 'all' ? undefined : cat);
       setList(data);
       setErr('');
     } catch (e) {
       setErr(String(e));
+    } finally {
+      setLoading(false);
     }
   }
-
-  useEffect(() => {
+    useEffect(() => {
+    setLoading(true);
     const stop = startSmartPoll(load);
     return stop;
   }, [cat]);
@@ -136,7 +139,12 @@ export default function SchedulePage() {
         </div>
 
         {/* List */}
-        {filtered.length === 0 ? (
+               {loading && list.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-16 gap-3">
+            <div className="h-8 w-8 rounded-full border-2 border-brand-gold/30 border-t-brand-gold animate-spin" />
+            <p className="text-brand-gold/70 text-sm">Loading contestants…</p>
+          </div>
+        ) : filtered.length === 0 ? (
           <div className="text-center py-16 text-brand-gold/60 text-sm">
             {list.length === 0 ? 'No contestants yet.' : 'No matches for your search.'}
           </div>

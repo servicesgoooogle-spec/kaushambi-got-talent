@@ -187,6 +187,8 @@ function Dashboard({
   const [annTitle, setAnnTitle] = useState('');
   const [annBody, setAnnBody] = useState('');
   const [annBusy, setAnnBusy] = useState(false);
+  const [firstLoad, setFirstLoad] = useState(true);
+
 
 
   async function load() {
@@ -200,6 +202,8 @@ function Dashboard({
       setErr('');
     } catch (e) {
       setErr(String(e));
+    } finally {
+      setFirstLoad(false);
     }
   }
 
@@ -420,13 +424,18 @@ function Dashboard({
           </button>
         </div>
 
-        {/* Contestant rows */}
+              {/* Contestant rows */}
         <div className="space-y-2">
-          {filtered.length === 0 && (
+          {firstLoad && !state ? (
+            <div className="flex flex-col items-center justify-center py-16 gap-3">
+              <div className="h-8 w-8 rounded-full border-2 border-brand-gold/30 border-t-brand-gold animate-spin" />
+              <p className="text-brand-gold/70 text-sm">Loading contestants…</p>
+            </div>
+          ) : filtered.length === 0 ? (
             <p className="text-center text-brand-gold/50 text-sm py-10">
               Nothing to show.
             </p>
-          )}
+          ) : null}
 
           {filtered.map((c) => (
             <Row
