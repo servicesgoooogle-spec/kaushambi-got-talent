@@ -307,6 +307,14 @@ function Dashboard({
     );
   }
 
+    const totalCount = state?.contestants?.length ?? 0;
+  const checkedInCount = (state?.contestants ?? []).filter(
+    (c) => c.checkedIn === true,
+  ).length;
+  const doneCount = (state?.contestants ?? []).filter(
+    (c) => c.status === 'COMPLETED',
+  ).length;
+
   const filtered = (state?.contestants ?? []).filter((c) => {
     if (filter === 'all') return true;
     if (filter === 'PENDING') return c.status === 'PENDING';
@@ -382,6 +390,34 @@ function Dashboard({
                 No one on stage right now.
               </p>
             )}
+          </div>
+        </div>
+
+        {/* Quick stats */}
+        <div className="grid grid-cols-3 gap-2 md:gap-3">
+          <div className="rounded-xl border border-brand-gold/30 bg-gradient-to-br from-brand-red/20 to-black/60 px-3 py-3 text-center">
+            <p className="text-[10px] uppercase tracking-widest text-brand-gold/60">
+              Total
+            </p>
+            <p className="font-display text-2xl md:text-3xl text-gold-gradient leading-none mt-1">
+              {totalCount}
+            </p>
+          </div>
+          <div className="rounded-xl border border-emerald-500/40 bg-gradient-to-br from-emerald-600/15 to-black/60 px-3 py-3 text-center">
+            <p className="text-[10px] uppercase tracking-widest text-emerald-300/80">
+              Checked In
+            </p>
+            <p className="font-display text-2xl md:text-3xl text-emerald-300 leading-none mt-1">
+              {checkedInCount}
+            </p>
+          </div>
+          <div className="rounded-xl border border-brand-neon/40 bg-gradient-to-br from-brand-neon/15 to-black/60 px-3 py-3 text-center">
+            <p className="text-[10px] uppercase tracking-widest text-brand-neon/80">
+              Done
+            </p>
+            <p className="font-display text-2xl md:text-3xl text-brand-neon leading-none mt-1">
+              {doneCount}
+            </p>
           </div>
         </div>
 

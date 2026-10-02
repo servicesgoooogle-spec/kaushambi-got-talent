@@ -223,15 +223,24 @@ export default function SchedulePage() {
                     <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full border border-brand-gold/40 bg-black/60 font-display text-lg text-brand-goldbright">
                       {String(c.seq).padStart(2, '0')}
                     </span>
-                    <div className="min-w-0 flex-1">
-                      <p className="font-semibold text-brand-goldbright truncate text-base">
-                        {c.name}
-                      </p>
+                                        <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <p className="font-semibold text-brand-goldbright truncate text-base">
+                          {c.name}
+                        </p>
+                        {c.checkedIn && (
+                          <span
+                            className="shrink-0 inline-flex items-center gap-1 rounded-full border border-emerald-500/50 bg-emerald-600/15 text-emerald-300 text-[9px] font-bold tracking-widest px-2 py-0.5"
+                            title="Checked in backstage"
+                          >
+                            ✓ ARRIVED
+                          </span>
+                        )}
+                      </div>
                       <p className="text-xs text-brand-gold/60 truncate">
                         {c.category} · {c.city}
                       </p>
-                    </div>
-                    <span
+                    </div>                    <span
                       className={[
                         'shrink-0 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[9px] font-bold tracking-widest border',
                         s.border, s.text, 'bg-black/50',
