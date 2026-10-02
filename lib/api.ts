@@ -27,6 +27,7 @@ export interface Contestant {
   city: string;
   phone: string;
   status: Status;
+  checkedIn?: boolean;
 }
 
 export interface Announcement {
@@ -148,3 +149,11 @@ export const api = {
   resetAll: (token: string) =>
     postJson<{ ok: boolean }>({ action: 'resetAll', token }),
 };
+
+  setCheckedIn: (token: string, contestantId: string, value: boolean) =>
+    postJson<{ ok: boolean; id: string; checkedIn: boolean }>({
+      action: 'setCheckedIn',
+      token,
+      contestantId,
+      value,
+    }),

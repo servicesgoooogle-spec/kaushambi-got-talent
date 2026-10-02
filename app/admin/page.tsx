@@ -6,7 +6,7 @@ import ConfirmModal, { ConfirmOptions } from '@/components/ConfirmModal';
 import {
   ArrowLeft, LogOut, Play, Check, SkipForward, RotateCcw,
   MessageCircle, AlertTriangle, Shield, Mic2, MapPin, RefreshCw,
-  Megaphone, Send, Trash2,
+  Megaphone, Send, Trash2, UserCheck, UserX,
 } from 'lucide-react';
 import { api, Contestant, PublicState, Status, Announcement } from '@/lib/api';
 import { startSmartPoll } from '@/lib/poll';
@@ -235,6 +235,28 @@ function Dashboard({
     }
   }
 
+    async function toggleCheckIn(c: Contestant) {
+    setBusyId(c.id);
+    try {
+      const res = await api.setCheckedIn(token, c.id, !c.checkedIn);
+      // optimistic update
+      setState((s) =>
+        s
+          ? {
+              ...s,
+              contestants: s.contestants.map((x) =>
+                x.id === c.id ? { ...x, checkedIn: res.checkedIn } : x,
+              ),
+            }
+          : s,
+      );
+    } catch (e) {
+      setErr(String(e).replace(/^Error:\s*/, ''));
+    } finally {
+      setBusyId(null);
+    }
+  }
+
     async function sendAnnouncement() {
     if (!annBody.trim()) {
       setErr('Message body is required');
@@ -438,7 +460,7 @@ function Dashboard({
           ) : null}
 
           {filtered.map((c) => (
-            <Row
+                        <Row
               key={c.id}
               contestant={c}
               busy={busyId === c.id}
@@ -446,6 +468,7 @@ function Dashboard({
               onComplete={() => doAction(c.id, () => api.markCompleted(token, c.id))}
               onSkip={() => doAction(c.id, () => api.skipContestant(token, c.id))}
               onRequeue={() => doAction(c.id, () => api.requeueContestant(token, c.id))}
+              onToggleCheckIn={() => toggleCheckIn(c)}
               askConfirm={askConfirm}
             />
           ))}
@@ -597,6 +620,7 @@ function Row({
   onComplete,
   onSkip,
   onRequeue,
+  onToggleCheckIn,
   askConfirm,
 }: {
   contestant: Contestant;
@@ -605,6 +629,7 @@ function Row({
   onComplete: () => void;
   onSkip: () => void;
   onRequeue: () => void;
+  onToggleCheckIn: () => void;
   askConfirm: (opts: ConfirmOptions, fn: () => void) => void;
 }) {
   return (
@@ -736,6 +761,21 @@ function Row({
             className="inline-flex items-center gap-1 rounded-lg border border-brand-gold/40 text-brand-gold text-xs font-bold px-3 py-1.5 transition hover:scale-105 hover:bg-brand-gold/10 active:scale-95 disabled:opacity-50"
           >
             <RotateCcw size={12} /> Requeue
+          </button>
+
+                    <button
+            onClick={onToggleCheckIn}
+            disabled={busy}
+            className={[
+              'inline-flex items-center gap-1 rounded-lg text-xs font-bold px-3 py-1.5 transition hover:scale-105 active:scale-95 disabled:opacity-50 border',
+              c.checkedIn
+                ? 'border-emerald-500/60 bg-emerald-600/30 text-emerald-100 hover:bg-emerald-600/50'
+                : 'border-brand-gold/40 text-brand-gold/80 hover:bg-brand-gold/10',
+            ].join(' ')}
+            title={c.checkedIn ? 'Mark as NOT arrived' : 'Mark as arrived backstage'}
+          >
+            {c.checkedIn ? <UserCheck size={12} /> : <UserX size={12} />}
+            {c.checkedIn ? 'Arrived' : 'Check In'}
           </button>
 
           {c.phone && (
