@@ -146,9 +146,8 @@ export const api = {
   setSetting: (token: string, key: string, value: string) =>
     postJson<{ ok: boolean }>({ action: 'setSetting', token, key, value }),
 
-  resetAll: (token: string) =>
+   resetAll: (token: string) =>
     postJson<{ ok: boolean }>({ action: 'resetAll', token }),
-};
 
   setCheckedIn: (token: string, contestantId: string, value: boolean) =>
     postJson<{ ok: boolean; id: string; checkedIn: boolean }>({
@@ -157,3 +156,4 @@ export const api = {
       contestantId,
       value,
     }),
+};
