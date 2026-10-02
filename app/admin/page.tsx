@@ -457,6 +457,7 @@ function Dashboard({
                   message: `You are about to reset ALL contestants back to PENDING.`,
                   details: [
                     'Every contestant → PENDING',
+                    'All check-in marks will be cleared',
                     'Now Performing will be cleared',
                     'No push notifications will be sent',
                     'This cannot be undone',
